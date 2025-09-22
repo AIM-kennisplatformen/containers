@@ -1,0 +1,19 @@
+services:
+  typedb:
+    image: vaticle/typedb:2.29.1
+    container_name: knowledgeplatform-typedb
+    ports:
+      - "1729:1729"
+    restart: unless-stopped
+    environment:
+      # Pass the database name to the entrypoint script
+      - DATABASE_NAME=knowledgeplatform
+      - DATA_ARCHIVE=/knowledgeplatform-data.tar.gz
+    volumes:
+      # Mount the data archive directly into the container
+      - ./knowledgeplatform-data.tar.gz:/knowledgeplatform-data.tar.gz
+      # Mount the entrypoint script that will unpack and load the data
+      - ./entrypoint.sh:/entrypoint.sh
+    # Set the custom entrypoint script
+    entrypoint: ["sh", "/entrypoint.sh"]
+
