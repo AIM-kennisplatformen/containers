@@ -2,9 +2,11 @@
 set -e
 
 # This script is run by the Docker container on startup.
-# It unpacks the data archive, waits for the TypeDB server to be ready,
-# and then imports the database.
+# It looks for a data archive in the /data directory, unpacks it if found,
+# waits for the TypeDB server to be ready, and then imports the database.
 
+# The DATABASE_NAME is passed as an environment variable from docker-compose.yml
+DATA_ARCHIVE="/data/knowledgeplatform-data.tar.gz"
 IMPORT_DIR="/tmp/import_data"
 
 SCHEMA_FILE="${IMPORT_DIR}/schema.tql"
@@ -18,7 +20,7 @@ if [ -f "$DATA_ARCHIVE" ]; then
     tar -xzvf "$DATA_ARCHIVE" -C "$IMPORT_DIR"
     echo "Unpacking complete."
 else
-    echo "Warning: Data archive not found. Starting with an empty database."
+    echo "Data archive not found. Starting with a fresh, empty database."
 fi
 
 echo "Starting TypeDB server in background..."
@@ -50,4 +52,3 @@ fi
 echo "TypeDB is running. Tailing logs to keep container alive."
 # Wait for the server process to exit, ensuring the container stays up
 wait $SERVER_PID
-
