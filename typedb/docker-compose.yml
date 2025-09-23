@@ -8,7 +8,12 @@ services:
     environment:
       - DATABASE_NAME=knowledgeplatform
     volumes:
-      - ./data:/data
+      - ./data:/archive
       - ./entrypoint.sh:/entrypoint.sh
     entrypoint: ["sh", "/entrypoint.sh"]
-
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/typedb-all-linux-x86_64/typedb console --core=localhost:1729 --command=\"database list\" > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s

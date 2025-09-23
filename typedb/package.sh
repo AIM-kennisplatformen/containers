@@ -3,8 +3,11 @@ set -e
 
 # --- Configuration ---
 SOURCE_CONTAINER_NAME="knowledgeplatform-typedb"
-DATABASE_NAME="knowledgeplatform"
-DATA_DIR="data"
+# The absolute path to the data folder inside the container
+CONTAINER_DATA_PATH="/opt/typedb-all-linux-x86_64/server/data"
+# The local directory where the final packaged data will be stored
+HOST_DATA_DIR="data"
+# The name of the final compressed archive
 ARTIFACT_NAME="knowledgeplatform-data.tar.gz"
 # --- End Configuration ---
 
@@ -18,39 +21,32 @@ if [ -z "$CONTAINER_ID" ]; then
 fi
 echo "Found container '${SOURCE_CONTAINER_NAME}' with ID: ${CONTAINER_ID}"
 
-# 2. Create the data directory if it doesn't exist
-echo "Creating data directory: ./${DATA_DIR}"
-mkdir -p "./${DATA_DIR}"
+# 2. Create the host data directory if it doesn't exist
+echo "Creating host data directory: ./${HOST_DATA_DIR}"
+mkdir -p "./${HOST_DATA_DIR}"
 
-# 3. FIX: Ensure the current user owns the data directory.
-# This is crucial on Linux, where Docker may create the directory as root.
+# 3. Ensure the current user owns the data directory.
 echo "Ensuring you have ownership of the data directory..."
-sudo chown -R $(id -u):$(id -g) "./${DATA_DIR}"
+sudo chown -R $(id -u):$(id -g) "./${HOST_DATA_DIR}"
 
-# 4. Create a temporary directory for the export
-EXPORT_DIR=$(mktemp -d)
-echo "Exporting database '${DATABASE_NAME}' to ${EXPORT_DIR}..."
+# 4. Create a temporary directory to stage the data
+TEMP_DIR=$(mktemp -d)
+echo "Staging data in temporary directory: ${TEMP_DIR}..."
 
-# 5. Export the database schema and data into the temp directory
-docker exec "$CONTAINER_ID" sh -c ' \
-  /opt/typedb-all-linux-x86_64/typedb server export \
-    --port=1729 \
-    --database='"$DATABASE_NAME"' \
-    --schema=/tmp/schema.tql \
-    --data=/tmp/data.typedb >&2 && \
-  tar -c -C /tmp schema.tql data.typedb \
-' | tar -x -v -C "${EXPORT_DIR}"
+# 5. Copy the entire data folder from the container to the temporary directory
+docker cp "${CONTAINER_ID}:${CONTAINER_DATA_PATH}" "${TEMP_DIR}"
+echo "Successfully copied '${CONTAINER_DATA_PATH}' from container."
 
-# 6. Create a compressed tarball of the data inside the ./data directory
-ARTIFACT_PATH="./${DATA_DIR}/${ARTIFACT_NAME}"
+# 6. Create a compressed tarball from the copied data
+ARTIFACT_PATH="./${HOST_DATA_DIR}/${ARTIFACT_NAME}"
 echo "Creating data archive: ${ARTIFACT_PATH}..."
-tar -czvf "${ARTIFACT_PATH}" -C "${EXPORT_DIR}" .
+# The '-C' flag changes the directory, so the tarball contains the 'data' folder itself.
+tar -czvf "${ARTIFACT_PATH}" -C "${TEMP_DIR}" .
 
-# 7. Clean up the temporary export directory
-rm -rf "${EXPORT_DIR}"
+# 7. Clean up the temporary directory
+rm -rf "${TEMP_DIR}"
 
 # --- Finished ---
 echo "--- Packaging complete! ---"
-echo "The archive is located at ${ARTIFACT_PATH}"
-echo "You can now run 'docker-compose up' to start the database."
-
+echo "The archive is located at: ${ARTIFACT_PATH}"
+echo "You can now use this archive to restore the data to another TypeDB instance."

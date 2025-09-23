@@ -1,54 +1,37 @@
 #!/bin/bash
 set -e
 
-# This script is run by the Docker container on startup.
-# It looks for a data archive in the /data directory, unpacks it if found,
-# waits for the TypeDB server to be ready, and then imports the database.
+# --- Configuration ---
+# Path inside the container where the data archive will be located.
+ARCHIVE_PATH="/archive/knowledgeplatform-data.tar.gz"
+# The parent directory where the 'data' folder will be extracted.
+TARGET_SERVER_DIR="/opt/typedb-all-linux-x86_64/server"
+# The full path to the data directory itself.
+TARGET_DATA_DIR="${TARGET_SERVER_DIR}/data"
+# The full path to the server data directory that will be loaded.
+TARGET_DATA_DIR="/opt/typedb-all-linux-x86_64/server/data"
+# --- End Configuration ---
 
-# The DATABASE_NAME is passed as an environment variable from docker-compose.yml
-DATA_ARCHIVE="/data/knowledgeplatform-data.tar.gz"
-IMPORT_DIR="/tmp/import_data"
+echo "--- TypeDB Container Entrypoint ---"
 
-SCHEMA_FILE="${IMPORT_DIR}/schema.tql"
-DATA_FILE="${IMPORT_DIR}/data.typedb"
+# Check if the data archive exists.
+if [ -f "$ARCHIVE_PATH" ]; then
+    echo "Data archive found at ${ARCHIVE_PATH}. Restoring data..."
 
-echo "Checking for data archive at ${DATA_ARCHIVE}..."
-if [ -f "$DATA_ARCHIVE" ]; then
-    echo "Data archive found. Unpacking into ${IMPORT_DIR}..."
-    mkdir -p "$IMPORT_DIR"
-    # Unpack the archive into the import directory
-    tar -xzvf "$DATA_ARCHIVE" -C "$IMPORT_DIR"
-    echo "Unpacking complete."
+    # Clear the contents of the target directory.
+    echo "Clearing contents of target directory: ${TARGET_DATA_DIR}"
+    rm -rf "${TARGET_DATA_DIR:?}/"*
+
+    # Extract the archive's contents into the now-empty directory.
+    echo "Extracting data from archive..."
+    tar -xzvf "${ARCHIVE_PATH}" -C "${TARGET_SERVER_DIR}"
+
+    echo "Data has been successfully loaded."
 else
-    echo "Data archive not found. Starting with a fresh, empty database."
+    echo "No data archive found at ${ARCHIVE_PATH}."
+    echo "Starting TypeDB with existing data (if any)."
 fi
 
-echo "Starting TypeDB server in background..."
-/opt/typedb-all-linux-x86_64/typedb server &
-SERVER_PID=$!
-
-echo "Waiting for TypeDB server to be ready..."
-# Wait until the server is responsive on its core port
-until /opt/typedb-all-linux-x86_64/typedb console --core=localhost:1729 --command="database list" &>/dev/null; do
-  echo "Server not responsive yet. Retrying in 2 seconds..."
-  sleep 2
-done
-echo "Server is ready."
-
-# Only attempt to import if the schema file was successfully unpacked
-if [ -f "$SCHEMA_FILE" ]; then
-    # Check if the database already exists to prevent import errors on restart
-    if /opt/typedb-all-linux-x86_64/typedb console --core=localhost:1729 --command="database list" | grep -q "$DATABASE_NAME"; then
-      echo "Database '$DATABASE_NAME' already exists. Skipping import."
-    else
-      echo "Importing database: $DATABASE_NAME"
-      /opt/typedb-all-linux-x86_64/typedb server import --port=1729 --database=$DATABASE_NAME --schema=$SCHEMA_FILE --data=$DATA_FILE
-      echo "Import complete."
-    fi
-else
-    echo "Schema file not found. No data will be imported."
-fi
-
-echo "TypeDB is running. Tailing logs to keep container alive."
-# Wait for the server process to exit, ensuring the container stays up
-wait $SERVER_PID
+# Start the TypeDB server.
+echo "Starting TypeDB server..."
+exec /opt/typedb-all-linux-x86_64/typedb server
