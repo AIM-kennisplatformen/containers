@@ -15,7 +15,7 @@ To create a data artifact these steps should be followed:
 
 1. Have a TypeDB container with the name `knowledgeplatform-typedb` running
 
-	- This TypeDB container can 
+	- This TypeDB container can have any number of databases inside.
 
 2. Run `./manage.sh`
 	- Select option 3 "Package current data"
