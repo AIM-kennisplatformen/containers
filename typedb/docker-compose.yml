@@ -5,15 +5,28 @@ services:
     ports:
       - "1729:1729"
     restart: unless-stopped
-    environment:
-      - DATABASE_NAME=knowledgeplatform
+    user: "1000:1000"
     volumes:
-      - ./data:/archive
-      - ./entrypoint.sh:/entrypoint.sh
-    entrypoint: ["sh", "/entrypoint.sh"]
+      # Mount to both directories to give cross architecture compatibility.
+      # There can't be any race conditions as only one of the mounting locations will be used. 
+      - ./data:/opt/typedb-all-linux-x86_64/server/data
+      - ./data:/opt/typedb-all-linux-arm64/server/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/typedb-all-linux-x86_64/typedb console --core=localhost:1729 --command=\"database list\" > /dev/null 2>&1"]
+      test:
+        - CMD-SHELL
+        # The else part should never be reached but exists as a failsafe error message that is more informative.
+        - |
+          if [ -f /opt/typedb-all-linux-x86_64/typedb ]; then
+            CMD=/opt/typedb-all-linux-x86_64/typedb
+          elif [ -f /opt/typedb-all-linux-arm64/typedb ]; then
+            CMD=/opt/typedb-all-linux-arm64/typedb
+          else
+            echo "ERROR: Could not find typedb executable for any architecture." >&2
+            exit 1
+          fi
+          $$CMD console --core=localhost:1729 --command='database list' > /dev/null 2>&1
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
+
