@@ -1,1 +1,2 @@
-/typedb/data
+# Exclude confidential information from the remote repository
+/data

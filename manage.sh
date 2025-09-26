@@ -17,10 +17,15 @@ tput smcup
 
 # --- Configuration ---
 HOST_DATA_DIR="data"
+# These paths are relative to the HOST_DATA_DIR.
+TYPEDB_EXCLUDE_FILE="typedb/.gitkeep"
+QDRANT_EXCLUDE_FILE="qdrant/.gitkeep"
 # --- End Configuration ---
 
-# Ensure the data directory exists
-mkdir -p "./${HOST_DATA_DIR}"
+# Ensure the main data directory and subdirectories exist.
+# The .gitkeep files ensure that Git tracks these directories.
+mkdir -p "./${HOST_DATA_DIR}/typedb" && touch "./${HOST_DATA_DIR}/typedb/.gitkeep"
+mkdir -p "./${HOST_DATA_DIR}/qdrant" && touch "./${HOST_DATA_DIR}/qdrant/.gitkeep"
 
 # --- Function to read user input with ESC as cancel ---
 read_with_esc() {
@@ -129,17 +134,24 @@ package_current_data() {
         return 1
     fi
 
-    # Check if there are any files/dirs to package (excluding other artifacts)
-    if [ -z "$(find "./${HOST_DATA_DIR}" -maxdepth 1 \! -name '*.tar.gz' \! -name "${HOST_DATA_DIR}")" ]; then
-        echo "No current data to package. Skipping."
+    # Check if there is anything to package in the typedb or qdrant directories
+    if [ -z "$(ls -A "./${HOST_DATA_DIR}/typedb" 2>/dev/null)" ] && [ -z "$(ls -A "./${HOST_DATA_DIR}/qdrant" 2>/dev/null)" ]; then
+        echo "No data found in 'typedb' or 'qdrant' directories to package. Skipping."
         wait_for_key "Press [ESC] to return to the main menu..."
         return 1
     fi
 
     local artifact_path="./${HOST_DATA_DIR}/${artifact_name}.tar.gz"
-    echo "Packaging current data into '${artifact_path}'..."
-    # The -C flag changes directory, and --exclude prevents packaging other artifacts
-    tar -czvf "${artifact_path}" --exclude='*.tar.gz' -C "./${HOST_DATA_DIR}" .
+    echo "Packaging 'typedb' and 'qdrant' dirs into '${artifact_path}'..."
+    echo "Excluding '${TYPEDB_EXCLUDE_FILE}' and '${QDRANT_EXCLUDE_FILE}'."
+
+    # The -C flag changes directory to HOST_DATA_DIR.
+    # --exclude flags are used to omit specific files from the archive.
+    tar --exclude="${TYPEDB_EXCLUDE_FILE}" \
+        --exclude="${QDRANT_EXCLUDE_FILE}" \
+        -czvf "${artifact_path}" \
+        -C "./${HOST_DATA_DIR}" typedb qdrant
+
     echo "Packaging complete."
     # Add a pause so the user can see the completion message
     echo ""
@@ -185,10 +197,10 @@ load_artifact() {
         echo "Skipping packaging of current data."
     fi
 
-    # 2. Clean up old files
-    echo "Cleaning old data files and directories..."
-    # This finds everything in the data dir that is NOT a .tar.gz file and removes it.
-    find "./${HOST_DATA_DIR}" -maxdepth 1 \! -name '*.tar.gz' \! -path "./${HOST_DATA_DIR}" -exec rm -rf {} +
+    # 2. Clean up old data directories, preserving .gitkeep
+    echo "Cleaning old 'typedb' and 'qdrant' directories (preserving .gitkeep)..."
+    find "./${HOST_DATA_DIR}/typedb" -mindepth 1 -not -name ".gitkeep" -delete
+    find "./${HOST_DATA_DIR}/qdrant" -mindepth 1 -not -name ".gitkeep" -delete
     echo "Cleanup complete."
 
     # 3. Unpack the selected artifact
@@ -206,7 +218,7 @@ while true; do
     clear
     echo ""
     echo "======================================"
-    echo "  TypeDB Data Artifact Manager  "
+    echo "      Data Artifact Manager       "
     echo "======================================"
     echo "1. List available data artifacts"
     echo "2. Load data from an artifact"
@@ -247,4 +259,3 @@ while true; do
             ;;
     esac
 done
-

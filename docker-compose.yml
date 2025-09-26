@@ -1,4 +1,23 @@
 services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.5-unprivileged
+    container_name: knowledgeplatform-qdrant
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   typedb:
     image: vaticle/typedb:2.29.1
     container_name: knowledgeplatform-typedb
@@ -9,8 +28,8 @@ services:
     volumes:
       # Mount to both directories to give cross architecture compatibility.
       # There can't be any race conditions as only one of the mounting locations will be used. 
-      - ./data:/opt/typedb-all-linux-x86_64/server/data
-      - ./data:/opt/typedb-all-linux-arm64/server/data
+      - ./data/typedb:/opt/typedb-all-linux-x86_64/server/data
+      - ./data/typedb:/opt/typedb-all-linux-arm64/server/data
     healthcheck:
       test:
         - CMD-SHELL
@@ -29,4 +48,3 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
-
