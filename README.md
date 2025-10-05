@@ -1,6 +1,6 @@
-# TypeDB and Qdrant data artifacts
+This readme provides instructions and a script for creating and loading a data artifact of TypeDB and Qdrant data and on how to start a langfuse container. The artifacts can be shared with others to provide jump start in the development proces.
 
-This readme provides instructions and a script for creating and loading a data artifact of TypeDB and Qdrant data. The artifact can be shared with others to provide jump start in the development proces.
+# TypeDB and Qdrant data artifacts
 
 ## Prerequisites
 
@@ -65,3 +65,20 @@ To stop and remove the container, run: `docker-compose down`
 
 This will stop the container but keep the data artifact.
  
+
+# Running langfuse
+
+## Prerequisites
+
+- Docker Engine
+- Docker Compose
+
+## Making a container
+1. Run `docker-compose up` in the "langfuse-docker" folder in this repo.
+
+## Opening langfuse UI
+1. Go to `http://localhost:3000` (if you are on a VM you need to add a security group for in and out traffic on port 3000 in SURF. Use address `0.0.0.0/0` and Network protocol `TCP`. After you have done this you can go to `http://<VM-IP>:3000` on your own device).
+2. Login with `dev@example.com` as email and `devpassword` as password.
+3. You should see a project named `Dev Project`, your logs will be in this project under `Observablitiy > tracing` (will be empty in beginning).
+
+Make sure to update the host in the mcp server if you want to log things in the mcp server.
