@@ -1,0 +1,12 @@
+FROM typedb/typedb:3.8.0
+
+# Temporarily use root to modify image permissions during the build process
+USER root
+
+# Give user 1000 ownership and execution rights to the TypeDB installation directories.
+# Using a wildcard (*) ensures it works for both x86_64 and arm64 architectures.
+RUN chown -R 1000:1000 /opt/typedb-server-* && \
+    chmod -R u+rx /opt/typedb-server-*
+
+# Switch back to the required unprivileged user
+USER 1000:1000
